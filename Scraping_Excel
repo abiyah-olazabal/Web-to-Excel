@@ -1,8 +1,4 @@
-import glob
-import os.path
 import requests
-from openpyxl import Workbook
-from openpyxl import load_workbook
 from bs4 import BeautifulSoup
 import pandas as pd
 '''
