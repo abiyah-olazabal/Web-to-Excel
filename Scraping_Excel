@@ -1,0 +1,60 @@
+import glob
+import os.path
+import requests
+from openpyxl import Workbook
+from openpyxl import load_workbook
+from bs4 import BeautifulSoup
+import pandas as pd
+'''
+Este proyecto nace de una necesidad de buscar datos en páginas web para evaluar los detalles de las órdenes de compra en una empresa retail.
+'''
+
+def consulta_php(url, hoja, data):
+    all_data = []
+    try:
+        valores = list(data.values())[1]
+    except:
+        valores = list(data.values())[0]
+
+    valores = valores.strip("'").split("','")  # Limpiar y convertir en lista
+    #print(valores)
+    total_numeros = len(valores)  # Contar elementos en la lista
+    print(total_numeros)
+    n_consultas = (total_numeros // 998) + 1
+    print(n_consultas)
+    for i in range(n_consultas):
+        subset_data = valores[i * 998: (i + 1) * 998]
+        #subset_data = "'" + "','".join(subset_data) + "'"
+        #print(subset_data)
+        data_query = data.copy()  # Hacer una copia del diccionario original
+        try:
+            data_query[list(data.keys())[1]] = "'" + "','".join(subset_data) + "'"
+        except:
+            data_query[list(data.keys())[0]] = "'" + "','".join(subset_data) + "'"
+
+        print(data_query)
+        response = requests.post(url, data=data_query)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            tabla = soup.find('table')
+            if tabla:
+                # Listas para almacenar los datos de las filas y columnas
+                filas_data = []
+                for fila_html in tabla.find_all('tr'):
+                    fila_data = []
+                    for celda_html in fila_html.find_all(['th', 'td']):
+                        fila_data.append(celda_html.text.strip())
+                    filas_data.append(fila_data)
+
+                # df de las consultas
+                dfConsulta = pd.DataFrame(filas_data)
+                # Agregar solo si no es la primera consulta
+                if i > 0:
+                    dfConsulta = dfConsulta.iloc[1:]
+
+                all_data.append(dfConsulta)
+            else:
+                print('Error')
+                exit()
+    dfConsulta = pd.concat(all_data, ignore_index=True)
+    return dfConsulta
